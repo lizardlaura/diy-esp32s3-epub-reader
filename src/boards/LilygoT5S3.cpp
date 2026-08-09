@@ -2,7 +2,7 @@
 #include <Renderer/LilygoT5S3Renderer.h>
 #include "controls/ButtonControls.h"
 #include "controls/TouchControls.h"
-#include "src/epd_driver.h"
+#include "epd_driver.h"
 #include <esp_sleep.h>
 
 // The T5-S3 has one usable button (GPIO21) plus BOOT on GPIO0, which is
