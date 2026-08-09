@@ -30,7 +30,7 @@
 // Global FreeType font instance used by the Paper S3 renderer.
 static FreeTypeFont *g_paper_s3_ft_font = nullptr;
 
-static void init_freetype_fobt(Renderer *renderer)
+static void init_freetype_font(Renderer *renderer)
 {
   if (g_paper_s3_ft_font)
   {

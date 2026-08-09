@@ -2,7 +2,7 @@
 
 #include "Board.h"
 
-class PaperS3 : public Board
+class LilygoT5S3 : public Board
 {
 public:
   virtual void power_up();

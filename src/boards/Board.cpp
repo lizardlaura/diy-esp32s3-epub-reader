@@ -1,13 +1,24 @@
 #include <esp_log.h>
 #include "Board.h"
-#include "PaperS3.h"
 #include <SDCard.h>
 #include "battery/ADCBattery.h"
 
+#if defined(BOARD_TYPE_LILYGO_T5_47_S3)
+#include "LilygoT5S3.h"
+#else
+#include "PaperS3.h"
+#endif
+ 
 Board *Board::factory()
 {
+#if defined(BOARD_TYPE_LILYGO_T5_47_S3)
+  return new LilygoT5S3();
+#else
   return new PaperS3();
+#endif
 }
+ 
+
 
 void Board::start_filesystem()
 {

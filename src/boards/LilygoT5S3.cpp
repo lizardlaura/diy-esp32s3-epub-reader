@@ -1,24 +1,19 @@
 #include "LilygoT5S3.h"
-#include <Renderer/EpdiyRenderer.h>
-#include <regular_font.h>
-#include <bold_font.h>
-#include <italic_font.h>
-#include <bold_italic_font.h>
-#include <hourglass.h>
+#include <Renderer/LilygoT5S3Renderer.h>
 #include "controls/ButtonControls.h"
-#include "controls/PaperS3TouchControls.h"
+#include "controls/TouchControls.h"
+#include "epd_driver.h"
 #include <esp_sleep.h>
 
-// Simple no-op button controls for boards without navigation buttons
+// The T5-S3 has one usable button (GPIO21) plus BOOT on GPIO0, which is
+// shared with the config shift register strobe. GPIOButtonControls needs
+// three pins, so use a no-op implementation until extra buttons are wired
+// to the free pins (45, 10, 48, 39).
 class NoButtonControls : public ButtonControls
 {
 public:
   bool did_wake_from_deep_sleep() override
   {
-    // On Paper S3, we use deep sleep as a low-power "screen off" and
-    // want to resume into the previous reading session rather than
-    // treating every wake as a cold boot. Consider any non-undefined
-    // wakeup cause as a deep-sleep resume.
     return esp_sleep_get_wakeup_cause() != ESP_SLEEP_WAKEUP_UNDEFINED;
   }
   UIAction get_deep_sleep_action() override { return UIAction::NONE; }
@@ -27,13 +22,15 @@ public:
 
 void LilygoT5S3::power_up()
 {
-  // Need to power on the EDP to get power to the SD Card
+  // Must power on the EPD to get power to the SD card - the SD slot sits
+  // downstream of the display power rail, so start_filesystem() will fail
+  // to mount if this hasn't run first.
   epd_poweron();
 }
 
 void LilygoT5S3::prepare_to_sleep()
 {
-  // No special handling yet; deep sleep is managed in main.cpp
+  epd_poweroff();
 }
 
 Renderer *LilygoT5S3::get_renderer()
@@ -44,17 +41,13 @@ Renderer *LilygoT5S3::get_renderer()
 ButtonControls *LilygoT5S3::get_button_controls(QueueHandle_t ui_queue)
 {
   (void)ui_queue;
-  // PaperS3 has no dedicated navigation buttons; all navigation will
-  // be via touch, so return a no-op ButtonControls implementation.
   return new NoButtonControls();
 }
 
 TouchControls *LilygoT5S3::get_touch_controls(Renderer *renderer, QueueHandle_t ui_queue)
 {
+  (void)renderer;
   (void)ui_queue;
-#if defined(BOARD_TYPE_LILYGO_T5_47_S3)
-  return new LilygoT5S3();
-#else
-  return new PaperS3();
-#endif
+  // GT911 not wired up yet - dummy implementation for now.
+  return new TouchControls();
 }

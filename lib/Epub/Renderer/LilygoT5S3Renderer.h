@@ -28,7 +28,7 @@
 #include <string.h>
 #include <math.h>
 
-#include "epd_driver.h"          // LilyGo library, NOT epdiy
+#include "src/epd_driver.h"          // LilyGo library, NOT epdiy
 #include "Renderer.h"
 
 #ifdef USE_FREETYPE
