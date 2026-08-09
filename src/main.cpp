@@ -19,21 +19,29 @@
 #include "boards/controls/PaperS3TouchControls.h"
 
 #ifdef USE_FREETYPE
+#if defined(BOARD_TYPE_PAPER_S3)
 #include "Renderer/EpdiyFrameBufferRenderer.h"
+#else
+#include "Renderer/LilygoT5S3Renderer.h"
+#endif
 #include "Renderer/FreeTypeFont.h"
 
-#if defined(BOARD_TYPE_PAPER_S3)
+#if defined(BOARD_TYPE_PAPER_S3) || defined(BOARD_TYPE_LILYGO_T5_47_S3)
 // Global FreeType font instance used by the Paper S3 renderer.
 static FreeTypeFont *g_paper_s3_ft_font = nullptr;
 
-static void init_freetype_for_paper_s3(Renderer *renderer)
+static void init_freetype_fobt(Renderer *renderer)
 {
   if (g_paper_s3_ft_font)
   {
     return;
   }
 
+#if defined(BOARD_TYPE_PAPER_S3)
   auto *epd_renderer = static_cast<EpdiyFrameBufferRenderer *>(renderer);
+#else
+  auto *epd_renderer = static_cast<LilygoT5S3Renderer *>(renderer);
+#endif
   if (!epd_renderer)
   {
     return;
@@ -1538,11 +1546,11 @@ void main_task(void *param)
   board->start_filesystem();
 
 #ifdef USE_FREETYPE
-#if defined(BOARD_TYPE_PAPER_S3)
+#if defined(BOARD_TYPE_PAPER_S3) || defined(BOARD_TYPE_LILYGO_T5_47_S3)
   // For Paper S3, initialize the global FreeType font once the filesystem
   // is available so that all subsequent UI and reading text rendering uses
   // the TTF font from /fs.
-  init_freetype_for_paper_s3(renderer);
+  init_freetype_font(renderer);
 #endif
 #endif
 
