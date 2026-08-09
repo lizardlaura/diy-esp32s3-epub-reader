@@ -40,7 +40,7 @@
 /* Flip to ROTATE_CCW if the page comes out upside down. Rotating the
    physical device is not equivalent - the panel's long edge is the
    scan direction, so pick the one that matches your enclosure. */
-#define ROTATE_CW
+#define ROTATE_CCW
 
 class LilygoT5S3Renderer : public Renderer
 {
