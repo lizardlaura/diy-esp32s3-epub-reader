@@ -51,7 +51,7 @@ bool GPIOButtonControls::did_wake_from_deep_sleep()
     ESP_LOGI("Controls", "ULP Wakeup");
     return true;
   }
-  if (active_level == 1 && wake_cause == ESP_SLEEP_WAKEUP_EXT1)
+  if (wake_cause == ESP_SLEEP_WAKEUP_EXT1)
   {
     ESP_LOGI("Controls", "EXT1 Wakeup");
     return true;
@@ -86,8 +86,7 @@ UIAction GPIOButtonControls::get_deep_sleep_action()
 #endif
 
   // Fallback / active-high buttons use EXT1 wakeup status.
-  if (active_level == 1)
-  {
+  
     uint64_t ext1_buttons = esp_sleep_get_ext1_wakeup_status();
     if (ext1_buttons & (1ULL << gpio_up))
     {
@@ -101,7 +100,7 @@ UIAction GPIOButtonControls::get_deep_sleep_action()
     {
       return UIAction::SELECT;
     }
-  }
+  
   return UIAction::NONE;
 }
 
@@ -139,22 +138,34 @@ void GPIOButtonControls::setup_deep_sleep()
 #endif
 
   // For active-high buttons, or when ULP is unavailable, use EXT1 wakeup.
-  if (active_level == 1)
+rtc_gpio_init(gpio_up);
+  rtc_gpio_set_direction(gpio_up, RTC_GPIO_MODE_INPUT_ONLY);
+  rtc_gpio_init(gpio_down);
+  rtc_gpio_set_direction(gpio_down, RTC_GPIO_MODE_INPUT_ONLY);
+  rtc_gpio_init(gpio_select);
+  rtc_gpio_set_direction(gpio_select, RTC_GPIO_MODE_INPUT_ONLY);
+
+  if (active_level == 0)
   {
-    rtc_gpio_init(gpio_up);
-    rtc_gpio_set_direction(gpio_up, RTC_GPIO_MODE_INPUT_ONLY);
-    rtc_gpio_pulldown_en(gpio_up);
-
-    rtc_gpio_init(gpio_down);
-    rtc_gpio_set_direction(gpio_down, RTC_GPIO_MODE_INPUT_ONLY);
-    rtc_gpio_pulldown_en(gpio_down);
-
-    rtc_gpio_init(gpio_select);
-    rtc_gpio_set_direction(gpio_select, RTC_GPIO_MODE_INPUT_ONLY);
-    rtc_gpio_pulldown_en(gpio_select);
-    esp_sleep_enable_ext1_wakeup(
-        (1ULL << gpio_up) | (1ULL << gpio_down) | (1ULL << gpio_select),
-        ESP_EXT1_WAKEUP_ANY_HIGH);
+    rtc_gpio_pulldown_dis(gpio_up);
+    rtc_gpio_pullup_en(gpio_up);
+    rtc_gpio_pulldown_dis(gpio_down);
+    rtc_gpio_pullup_en(gpio_down);
+    rtc_gpio_pulldown_dis(gpio_select);
+    rtc_gpio_pullup_en(gpio_select);
   }
+  else
+  {
+    rtc_gpio_pullup_dis(gpio_up);
+    rtc_gpio_pulldown_en(gpio_up);
+    rtc_gpio_pullup_dis(gpio_down);
+    rtc_gpio_pulldown_en(gpio_down);
+    rtc_gpio_pullup_dis(gpio_select);
+    rtc_gpio_pulldown_en(gpio_select);
+  }
+
+  esp_sleep_enable_ext1_wakeup(
+      (1ULL << gpio_up) | (1ULL << gpio_down) | (1ULL << gpio_select),
+      active_level == 0 ? ESP_EXT1_WAKEUP_ANY_LOW : ESP_EXT1_WAKEUP_ANY_HIGH);
 }
 #endif

@@ -1,6 +1,7 @@
 #include "LilygoT5S3.h"
 #include <Renderer/LilygoT5S3Renderer.h>
 #include "controls/ButtonControls.h"
+#include "controls/GPIOButtonControls.h"
 #include "controls/TouchControls.h"
 #include "epd_driver.h"
 #include <esp_sleep.h>
@@ -38,10 +39,20 @@ Renderer *LilygoT5S3::get_renderer()
   return new LilygoT5S3Renderer();
 }
 
+// ButtonControls *LilygoT5S3::get_button_controls(QueueHandle_t ui_queue)
+// {
+//   (void)ui_queue;
+//   return new NoButtonControls();
+// }
+
 ButtonControls *LilygoT5S3::get_button_controls(QueueHandle_t ui_queue)
 {
-  (void)ui_queue;
-  return new NoButtonControls();
+  return new GPIOButtonControls(
+      GPIO_NUM_21,   // up
+      GPIO_NUM_10,   // down
+      GPIO_NUM_9,   // select
+      0,             // active level: 0 for buttons to GND with pull-ups
+      [ui_queue](UIAction action) { xQueueSend(ui_queue, &action, 0); });
 }
 
 TouchControls *LilygoT5S3::get_touch_controls(Renderer *renderer, QueueHandle_t ui_queue)
