@@ -4,6 +4,8 @@
 
 #include "Renderer.h"
 #include <string.h>
+#include <stdio.h>
+#include <esp_heap_caps.h>
 
 // Decode the next UTF-8 code point from the string and advance the
 // pointer. Returns 0 on error, in which case the caller can skip the
@@ -58,6 +60,21 @@ static unsigned int utf8_next_codepoint(const unsigned char *&p)
 
 FreeTypeFont::FreeTypeFont() {}
 
+// FreeTypeFont::~FreeTypeFont()
+// {
+//   if (m_face)
+//   {
+//     FT_Done_Face(m_face);
+//     m_face = nullptr;
+//   }
+//   if (m_library)
+//   {
+//     FT_Done_FreeType(m_library);
+//     m_library = nullptr;
+//   }
+//   m_initialized = false;
+// }
+
 FreeTypeFont::~FreeTypeFont()
 {
   if (m_face)
@@ -70,7 +87,28 @@ FreeTypeFont::~FreeTypeFont()
     FT_Done_FreeType(m_library);
     m_library = nullptr;
   }
+  if (m_font_data)
+  {
+    free(m_font_data);
+    m_font_data = nullptr;
+  }
   m_initialized = false;
+}
+
+void FreeTypeFont::build_advance_cache()
+{
+  for (int c = 0; c < 128; c++)
+  {
+    m_advance_cache[c] = 0;
+    FT_UInt glyph_index = FT_Get_Char_Index(m_face, c);
+    if (FT_Load_Glyph(m_face, glyph_index, FT_LOAD_DEFAULT) != 0)
+      continue;
+    int advance = static_cast<int>(m_face->glyph->advance.x >> 6);
+    if (advance <= 0)
+      advance = static_cast<int>(m_face->glyph->metrics.horiAdvance >> 6);
+    if (advance > 0)
+      m_advance_cache[c] = advance;
+  }
 }
 
 bool FreeTypeFont::init(const char *font_path, int pixel_height)
@@ -86,7 +124,30 @@ bool FreeTypeFont::init(const char *font_path, int pixel_height)
     return false;
   }
 
-  err = FT_New_Face(m_library, font_path, 0, &m_face);
+  // err = FT_New_Face(m_library, font_path, 0, &m_face);
+    FILE *f = fopen(font_path, "rb");
+  if (!f)
+  {
+    FT_Done_FreeType(m_library);
+    m_library = nullptr;
+    return false;
+  }
+  fseek(f, 0, SEEK_END);
+  long font_size = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  m_font_data = (FT_Byte *)heap_caps_malloc(font_size, MALLOC_CAP_SPIRAM);
+  if (!m_font_data || fread(m_font_data, 1, font_size, f) != (size_t)font_size)
+  {
+    fclose(f);
+    free(m_font_data);
+    m_font_data = nullptr;
+    FT_Done_FreeType(m_library);
+    m_library = nullptr;
+    return false;
+  }
+  fclose(f);
+
+  err = FT_New_Memory_Face(m_library, m_font_data, font_size, 0, &m_face);
   if (err != 0)
   {
     FT_Done_FreeType(m_library);
@@ -109,6 +170,7 @@ bool FreeTypeFont::init(const char *font_path, int pixel_height)
   }
 
   m_pixel_height = pixel_height;
+  build_advance_cache();
   m_initialized = true;
   return true;
 }
@@ -143,8 +205,13 @@ int FreeTypeFont::get_text_width(const char *text) const
   while (*p)
   {
     unsigned int codepoint = utf8_next_codepoint(p);
-    if (codepoint == 0)
+    // if (codepoint == 0)
+    // {
+    //   continue;
+    // }
+        if (codepoint < 128 && m_advance_cache[codepoint] > 0)
     {
+      width += m_advance_cache[codepoint];
       continue;
     }
 

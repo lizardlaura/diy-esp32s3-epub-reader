@@ -45,10 +45,14 @@ public:
   bool set_pixel_height(int pixel_height);
 
 private:
+  void build_advance_cache();
+
   FT_Library m_library = nullptr;
   FT_Face m_face = nullptr;
+    FT_Byte *m_font_data = nullptr;
   int m_pixel_height = 0;
   bool m_initialized = false;
+  int m_advance_cache[128] = {0};
 };
 
 #endif // USE_FREETYPE

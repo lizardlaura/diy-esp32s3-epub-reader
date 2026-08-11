@@ -52,11 +52,12 @@ static void init_freetype_font(Renderer *renderer)
   int pixel_height = 22;
   if (!g_paper_s3_ft_font->init("/fs/fonts/reader.ttf", pixel_height))
   {
+    ESP_LOGE("FONT", "FreeType init failed for /fs/fonts/reader.ttf");
     delete g_paper_s3_ft_font;
     g_paper_s3_ft_font = nullptr;
     return;
   }
-
+ESP_LOGI("FONT", "FreeType font loaded");
   epd_renderer->set_freetype_font_for_reading(g_paper_s3_ft_font);
   epd_renderer->set_freetype_enabled(true);
 }
@@ -436,9 +437,9 @@ static void renderReaderMenu(Renderer *renderer)
     labels[9] = buf_gest;
   }
 
-#ifdef USE_FREETYPE
-  renderer->set_freetype_enabled(false);
-#endif
+// #ifdef USE_FREETYPE
+//   renderer->set_freetype_enabled(false);
+// #endif
 
   renderer->clear_screen();
   int page_width = renderer->get_page_width();
@@ -1716,12 +1717,13 @@ void main_task(void *param)
   {
     ESP_LOGW("main", "esp_sleep_enable_ulp_wakeup failed: %s", esp_err_to_name(err));
   }
-  ESP_LOGI("main", "Entering deep sleep");
-  // configure deep sleep options
-  button_controls->setup_deep_sleep();
-  vTaskDelay(pdMS_TO_TICKS(500));
-  // go to sleep
-  esp_deep_sleep_start();
+  ESP_LOGI("main", "Sleep code temporarily commented out the device doesnt sleep for easier troubleshooting.");
+  // ESP_LOGI("main", "Entering deep sleep");
+  // // configure deep sleep options
+  // button_controls->setup_deep_sleep();
+  // vTaskDelay(pdMS_TO_TICKS(500));
+  // // go to sleep
+  // esp_deep_sleep_start();
 }
 
 void app_main()

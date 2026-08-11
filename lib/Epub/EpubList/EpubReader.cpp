@@ -85,10 +85,11 @@ void EpubReader::parse_and_layout_current_section()
   }
 
   renderer->show_busy();
-  ESP_LOGD(TAG, "Parse and render section %d", state.current_section);
-  ESP_LOGD(TAG, "Before read html: %d", esp_get_free_heap_size());
+  ESP_LOGI(TAG, "Parse and render section %d", state.current_section);
+  ESP_LOGI(TAG, "Before read html: %d", esp_get_free_heap_size());
 
   std::string item = epub->get_spine_item(state.current_section);
+    ESP_LOGI(TAG, "spine item %d -> '%s'", state.current_section, item.c_str());
   if (item.empty())
   {
     ESP_LOGE(TAG, "No spine item for section %d", state.current_section);
@@ -101,14 +102,14 @@ void EpubReader::parse_and_layout_current_section()
     ESP_LOGE(TAG, "Failed to read HTML for spine item '%s'", item.c_str());
     return;
   }
-  ESP_LOGD(TAG, "After read html: %d", esp_get_free_heap_size());
+  ESP_LOGI(TAG, "After read html: %d", esp_get_free_heap_size());
   delete parser;
   parser = new RubbishHtmlParser(html, strlen(html), base_path, use_justified);
   parser_section = state.current_section;
   free(html);
-  ESP_LOGD(TAG, "After parse: %d", esp_get_free_heap_size());
+  ESP_LOGI(TAG, "After parse: %d", esp_get_free_heap_size());
   parser->layout(renderer, epub);
-  ESP_LOGD(TAG, "After layout: %d", esp_get_free_heap_size());
+  ESP_LOGI(TAG, "After layout: %d", esp_get_free_heap_size());
   state.pages_in_current_section = parser->get_page_count();
 }
 
@@ -241,7 +242,7 @@ void EpubReader::render()
     ESP_LOGE(TAG, "EpubReader::render called with null parser after layout; aborting render");
     return;
   }
-  ESP_LOGD(TAG, "rendering page %d of %d", state.current_page, parser->get_page_count());
+  ESP_LOGI(TAG, "rendering page %d of %d", state.current_page, parser->get_page_count());
   parser->render_page(state.current_page, renderer, epub);
 
   ESP_LOGD(TAG, "rendered page %d of %d", state.current_page, parser->get_page_count());

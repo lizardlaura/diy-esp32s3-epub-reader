@@ -50,7 +50,7 @@ ButtonControls *LilygoT5S3::get_button_controls(QueueHandle_t ui_queue)
   return new GPIOButtonControls(
       GPIO_NUM_21,   // up
       GPIO_NUM_10,   // down
-      GPIO_NUM_9,   // select
+      GPIO_NUM_39,   // select
       0,             // active level: 0 for buttons to GND with pull-ups
       [ui_queue](UIAction action) { xQueueSend(ui_queue, &action, 0); });
 }

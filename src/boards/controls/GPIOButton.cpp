@@ -2,7 +2,7 @@
 #include <esp_timer.h>
 #include <driver/gpio.h>
 #include <esp_attr.h>
-
+#include <esp_log.h>
 // 100 ms debounce on the buttons
 const int BUTTON_DEBOUNCE = 50000;
 
@@ -39,6 +39,7 @@ void GPIOButton::handle_interrupt()
     // has enough time passed to call this a button press?
     if (button_release_time - button_press_start > BUTTON_DEBOUNCE)
     {
+      ESP_EARLY_LOGI("GPIOButton", "pin %d activated", gpio_pin);
       // call the callback
       callback();
     }
