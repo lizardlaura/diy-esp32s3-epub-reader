@@ -115,7 +115,7 @@ typedef enum
   SLEEP_IMAGE_OFF
 } SleepImageMode;
 
-SleepImageMode sleep_image_mode = SLEEP_IMAGE_COVER;
+SleepImageMode sleep_image_mode = SLEEP_IMAGE_OFF;
 
 typedef enum
 {
@@ -1363,6 +1363,29 @@ static void show_sleep_cover(Renderer *renderer)
   renderer->flush_display();
 }
 
+#if defined(BOARD_TYPE_LILYGO_T5_47_S3)
+// Light sleep retains RAM, so all reader state survives. Any of the three
+// buttons wakes us - including GPIO39, which is not RTC-capable and so
+// cannot wake from deep sleep.
+static void enter_light_sleep()
+{
+  const gpio_num_t wake_pins[] = {GPIO_NUM_21, GPIO_NUM_10, GPIO_NUM_39};
+
+  // GPIOButton leaves each pin armed for GPIO_INTR_LOW_LEVEL while waiting
+  // for a press, so the wake trigger matches the interrupt already configured.
+  for (gpio_num_t pin : wake_pins)
+    gpio_wakeup_enable(pin, GPIO_INTR_LOW_LEVEL);
+  esp_sleep_enable_gpio_wakeup();
+
+  ESP_LOGI("main", "Entering light sleep");
+  esp_light_sleep_start();
+  ESP_LOGI("main", "Woke from light sleep");
+
+  for (gpio_num_t pin : wake_pins)
+    gpio_wakeup_disable(pin);
+}
+#endif
+
 static void show_sleep_image(Renderer *renderer)
 {
   if (sleep_image_mode == SLEEP_IMAGE_OFF)
@@ -1583,7 +1606,7 @@ void main_task(void *param)
     bool hydrate_success = renderer->hydrate();
     UIAction ui_action = button_controls->get_deep_sleep_action();
 
-#if defined(BOARD_TYPE_PAPER_S3)
+#if defined(BOARD_TYPE_PAPER_S3) || defined(BOARD_TYPE_LILYGO_T5_47_S3)
     // On Paper S3, a deep-sleep wake should always behave like
     // "resume reading": rebuild the EPUB list state and jump
     // straight back into the last-open book and page, regardless
@@ -1598,10 +1621,9 @@ void main_task(void *param)
     {
       epub_list_state.selected_item = last_book_index;
       ui_state = READING_EPUB;
-      // Ignore any deep-sleep button action on Paper S3 (there
-      // are no navigation buttons); we just want to render the
-      // last-opened page.
-      ui_action = NONE;
+     #if defined(BOARD_TYPE_PAPER_S3)
+      ui_action = NONE;   // Paper S3 has no navigation buttons
+#endif
     }
 #endif
 
@@ -1654,7 +1676,16 @@ void main_task(void *param)
     int64_t idle_timeout_us = in_reading_context ? idle_timeout_reading_us : idle_timeout_library_us;
     if (esp_timer_get_time() - last_user_interaction >= idle_timeout_us)
     {
+     if (esp_timer_get_time() - last_user_interaction >= idle_timeout_us)
+    {
+#if defined(BOARD_TYPE_LILYGO_T5_47_S3)
+      enter_light_sleep();
+      last_user_interaction = esp_timer_get_time();
+      continue;
+#else
       break;
+#endif
+    }
     }
     UIAction ui_action = NONE;
     // wait for something to happen for 60 seconds

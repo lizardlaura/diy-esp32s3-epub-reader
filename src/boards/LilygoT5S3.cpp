@@ -48,9 +48,9 @@ Renderer *LilygoT5S3::get_renderer()
 ButtonControls *LilygoT5S3::get_button_controls(QueueHandle_t ui_queue)
 {
   return new GPIOButtonControls(
-      GPIO_NUM_21,   // up
-      GPIO_NUM_10,   // down
-      GPIO_NUM_39,   // select
+      GPIO_NUM_21,   // up side button
+      GPIO_NUM_10,   // down pin 19
+      GPIO_NUM_39,   // select pin 24
       0,             // active level: 0 for buttons to GND with pull-ups
       [ui_queue](UIAction action) {  BaseType_t higher_woken = pdFALSE;
         xQueueSendFromISR(ui_queue, &action, &higher_woken);
