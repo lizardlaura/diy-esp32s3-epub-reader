@@ -72,5 +72,5 @@ public:
       ActionCallback_t on_action);
   bool did_wake_from_deep_sleep();
   UIAction get_deep_sleep_action();
-  void setup_deep_sleep();
+  bool setup_deep_sleep();
 };

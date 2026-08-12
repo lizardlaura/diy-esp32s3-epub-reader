@@ -67,7 +67,7 @@ UIAction EpdiyV6ButtonControls::get_deep_sleep_action()
   return UIAction::NONE;
 }
 
-void EpdiyV6ButtonControls::setup_deep_sleep()
+bool EpdiyV6ButtonControls::setup_deep_sleep()
 {
 #if EPDIYBTN_HAS_ULP
   if (active_level == 0)
@@ -86,7 +86,7 @@ void EpdiyV6ButtonControls::setup_deep_sleep()
     ulp_set_wakeup_period(0, 100 * 1000); // 100 ms
     err = ulp_run(&ulp_entry - RTC_SLOW_MEM);
     ESP_ERROR_CHECK(err);
-    return;
+    return true;
   }
 #endif
 
@@ -100,6 +100,7 @@ void EpdiyV6ButtonControls::setup_deep_sleep()
         1ULL << gpio_select,
         ESP_EXT1_WAKEUP_ANY_HIGH);
   }
+  return true;
 }
 
 esp_err_t EpdiyV6ButtonControls::i2c_master_read_slave(i2c_port_t i2c_num, uint8_t *data_rd, size_t size, int reg)

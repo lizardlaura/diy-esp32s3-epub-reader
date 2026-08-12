@@ -22,7 +22,7 @@ public:
     return esp_sleep_get_wakeup_cause() != ESP_SLEEP_WAKEUP_UNDEFINED;
   }
   UIAction get_deep_sleep_action() override { return UIAction::NONE; }
-  void setup_deep_sleep() override {}
+  bool setup_deep_sleep() override { return false; }
 };
 
 void PaperS3::power_up()

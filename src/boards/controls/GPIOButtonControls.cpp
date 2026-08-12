@@ -6,6 +6,8 @@
 #include <esp_log.h>
 #include <esp_timer.h>
 #include "GPIOButtonControls.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 // ULP support is only available on some targets / IDF versions.
 // Make usage conditional so builds succeed when esp32/ulp.h is absent.
@@ -104,7 +106,7 @@ UIAction GPIOButtonControls::get_deep_sleep_action()
   return UIAction::NONE;
 }
 
-void GPIOButtonControls::setup_deep_sleep()
+bool GPIOButtonControls::setup_deep_sleep()
 {
 #if GPIOBTN_HAS_ULP
   if (active_level == 0)
@@ -137,35 +139,98 @@ void GPIOButtonControls::setup_deep_sleep()
   }
 #endif
 
-  // For active-high buttons, or when ULP is unavailable, use EXT1 wakeup.
-rtc_gpio_init(gpio_up);
-  rtc_gpio_set_direction(gpio_up, RTC_GPIO_MODE_INPUT_ONLY);
-  rtc_gpio_init(gpio_down);
-  rtc_gpio_set_direction(gpio_down, RTC_GPIO_MODE_INPUT_ONLY);
-  rtc_gpio_init(gpio_select);
-  rtc_gpio_set_direction(gpio_select, RTC_GPIO_MODE_INPUT_ONLY);
+//   // For active-high buttons, or when ULP is unavailable, use EXT1 wakeup.
+// rtc_gpio_init(gpio_up);
+//   rtc_gpio_set_direction(gpio_up, RTC_GPIO_MODE_INPUT_ONLY);
+//   rtc_gpio_init(gpio_down);
+//   rtc_gpio_set_direction(gpio_down, RTC_GPIO_MODE_INPUT_ONLY);
+//   rtc_gpio_init(gpio_select);
+//   rtc_gpio_set_direction(gpio_select, RTC_GPIO_MODE_INPUT_ONLY);
 
-  if (active_level == 0)
+//   if (active_level == 0)
+//   {
+//     rtc_gpio_pulldown_dis(gpio_up);
+//     rtc_gpio_pullup_en(gpio_up);
+//     rtc_gpio_pulldown_dis(gpio_down);
+//     rtc_gpio_pullup_en(gpio_down);
+//     rtc_gpio_pulldown_dis(gpio_select);
+//     rtc_gpio_pullup_en(gpio_select);
+//   }
+//   else
+//   {
+//     rtc_gpio_pullup_dis(gpio_up);
+//     rtc_gpio_pulldown_en(gpio_up);
+//     rtc_gpio_pullup_dis(gpio_down);
+//     rtc_gpio_pulldown_en(gpio_down);
+//     rtc_gpio_pullup_dis(gpio_select);
+//     rtc_gpio_pulldown_en(gpio_select);
+//   }
+
+//   esp_sleep_enable_ext1_wakeup(
+//       (1ULL << gpio_up) | (1ULL << gpio_down) | (1ULL << gpio_select),
+//       active_level == 0 ? ESP_EXT1_WAKEUP_ANY_LOW : ESP_EXT1_WAKEUP_ANY_HIGH);
+// For active-high buttons, or when ULP is unavailable, use EXT1 wakeup.
+  // NOTE: on ESP32-S3 only GPIO0..GPIO21 are RTC-capable. GPIO39 (select) is
+  // not, so it is filtered out here and cannot wake the device.
+  const gpio_num_t candidates[] = {gpio_up, gpio_down, gpio_select};
+  uint64_t ext1_mask = 0;
+
+  for (gpio_num_t pin : candidates)
   {
-    rtc_gpio_pulldown_dis(gpio_up);
-    rtc_gpio_pullup_en(gpio_up);
-    rtc_gpio_pulldown_dis(gpio_down);
-    rtc_gpio_pullup_en(gpio_down);
-    rtc_gpio_pulldown_dis(gpio_select);
-    rtc_gpio_pullup_en(gpio_select);
-  }
-  else
-  {
-    rtc_gpio_pullup_dis(gpio_up);
-    rtc_gpio_pulldown_en(gpio_up);
-    rtc_gpio_pullup_dis(gpio_down);
-    rtc_gpio_pulldown_en(gpio_down);
-    rtc_gpio_pullup_dis(gpio_select);
-    rtc_gpio_pulldown_en(gpio_select);
+    if (!rtc_gpio_is_valid_gpio(pin))
+    {
+      ESP_LOGW("Controls", "GPIO%d is not RTC-capable, excluded from wake mask", pin);
+      continue;
+    }
+    rtc_gpio_init(pin);
+    rtc_gpio_set_direction(pin, RTC_GPIO_MODE_INPUT_ONLY);
+    if (active_level == 0)
+    {
+      rtc_gpio_pulldown_dis(pin);
+      rtc_gpio_pullup_en(pin);
+    }
+    else
+    {
+      rtc_gpio_pullup_dis(pin);
+      rtc_gpio_pulldown_en(pin);
+    }
+    ext1_mask |= (1ULL << pin);
   }
 
-  esp_sleep_enable_ext1_wakeup(
-      (1ULL << gpio_up) | (1ULL << gpio_down) | (1ULL << gpio_select),
+  if (ext1_mask == 0)
+  {
+    ESP_LOGE("Controls", "no RTC-capable wake pins - refusing deep sleep");
+    return false;
+  }
+
+  // Level-triggered wake: if a button is still held (or GPIO21's 100k/4.7uF
+  // RC hasn't recovered) we would wake immediately. Wait for release.
+  const int64_t deadline = esp_timer_get_time() + 3000000;
+  while (esp_timer_get_time() < deadline)
+  {
+    bool all_released = true;
+    for (gpio_num_t pin : candidates)
+    {
+      if (gpio_get_level(pin) == active_level)
+      {
+        all_released = false;
+        break;
+      }
+    }
+    if (all_released)
+      break;
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+
+  esp_err_t err = esp_sleep_enable_ext1_wakeup(
+      ext1_mask,
       active_level == 0 ? ESP_EXT1_WAKEUP_ANY_LOW : ESP_EXT1_WAKEUP_ANY_HIGH);
+  if (err != ESP_OK)
+  {
+    ESP_LOGE("Controls", "ext1 arm failed: %s - refusing deep sleep", esp_err_to_name(err));
+    return false;
+  }
+  return true;
+
 }
 #endif

@@ -18,7 +18,7 @@ public:
     return esp_sleep_get_wakeup_cause() != ESP_SLEEP_WAKEUP_UNDEFINED;
   }
   UIAction get_deep_sleep_action() override { return UIAction::NONE; }
-  void setup_deep_sleep() override {}
+  bool setup_deep_sleep() override { return false; }
 };
 
 void LilygoT5S3::power_up()
@@ -52,7 +52,9 @@ ButtonControls *LilygoT5S3::get_button_controls(QueueHandle_t ui_queue)
       GPIO_NUM_10,   // down
       GPIO_NUM_39,   // select
       0,             // active level: 0 for buttons to GND with pull-ups
-      [ui_queue](UIAction action) { xQueueSend(ui_queue, &action, 0); });
+      [ui_queue](UIAction action) {  BaseType_t higher_woken = pdFALSE;
+        xQueueSendFromISR(ui_queue, &action, &higher_woken);
+        if (higher_woken) portYIELD_FROM_ISR(); });
 }
 
 TouchControls *LilygoT5S3::get_touch_controls(Renderer *renderer, QueueHandle_t ui_queue)

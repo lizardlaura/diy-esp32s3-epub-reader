@@ -1712,18 +1712,13 @@ void main_task(void *param)
   board->stop_filesystem();
   // get ready to go to sleep
   board->prepare_to_sleep();
-  esp_err_t err = esp_sleep_enable_ulp_wakeup();
-  if (err != ESP_OK)
+  if (button_controls->setup_deep_sleep())
   {
-    ESP_LOGW("main", "esp_sleep_enable_ulp_wakeup failed: %s", esp_err_to_name(err));
+    ESP_LOGI("main", "Entering deep sleep");
+    vTaskDelay(pdMS_TO_TICKS(500));
+    esp_deep_sleep_start();
   }
-  ESP_LOGI("main", "Sleep code temporarily commented out the device doesnt sleep for easier troubleshooting.");
-  // ESP_LOGI("main", "Entering deep sleep");
-  // // configure deep sleep options
-  // button_controls->setup_deep_sleep();
-  // vTaskDelay(pdMS_TO_TICKS(500));
-  // // go to sleep
-  // esp_deep_sleep_start();
+  ESP_LOGE("main", "deep sleep unavailable - staying awake");
 }
 
 void app_main()
