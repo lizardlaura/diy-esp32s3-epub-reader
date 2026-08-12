@@ -218,6 +218,21 @@ bool EpubList::load(const char *path)
   {
     m_title_blocks.resize(state.num_epubs, nullptr);
   }
+
+  for (int i = 0; i < state.num_epubs; i++)
+  {
+    for (const auto &prev : m_previous_positions)
+    {
+      if (strncmp(prev.path, state.epub_list[i].path, MAX_PATH_SIZE) == 0)
+      {
+        state.epub_list[i].current_section = prev.current_section;
+        state.epub_list[i].current_page = prev.current_page;
+        state.epub_list[i].pages_in_current_section = prev.pages_in_current_section;
+        break;
+      }
+    }
+  }
+  m_previous_positions.clear();
   save_index(index_path);
   return true;
 }
@@ -730,6 +745,7 @@ bool EpubList::load_index(const char *books_path, const char *index_path)
   }
   if (dir_count != count)
   {
+    m_previous_positions.assign(state.epub_list, state.epub_list + count);
     return false;
   }
 

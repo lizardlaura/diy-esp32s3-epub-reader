@@ -17,6 +17,7 @@
 #include <RubbishHtmlParser/RubbishHtmlParser.h>
 #include "boards/Board.h"
 #include "boards/controls/PaperS3TouchControls.h"
+#include <driver/gpio.h>
 
 #ifdef USE_FREETYPE
 #if defined(BOARD_TYPE_PAPER_S3)
@@ -57,7 +58,7 @@ static void init_freetype_font(Renderer *renderer)
     g_paper_s3_ft_font = nullptr;
     return;
   }
-ESP_LOGI("FONT", "FreeType font loaded");
+  ESP_LOGI("FONT", "FreeType font loaded");
   epd_renderer->set_freetype_font_for_reading(g_paper_s3_ft_font);
   epd_renderer->set_freetype_enabled(true);
 }
@@ -437,9 +438,9 @@ static void renderReaderMenu(Renderer *renderer)
     labels[9] = buf_gest;
   }
 
-// #ifdef USE_FREETYPE
-//   renderer->set_freetype_enabled(false);
-// #endif
+  // #ifdef USE_FREETYPE
+  //   renderer->set_freetype_enabled(false);
+  // #endif
 
   renderer->clear_screen();
   int page_width = renderer->get_page_width();
@@ -619,11 +620,16 @@ static void renderReaderMenu(Renderer *renderer)
     int w_center = renderer->get_text_width(center, false, false);
     int w_rs = renderer->get_text_width(right_single, true, false);
     int w_rd = renderer->get_text_width(right_double, true, false);
-    if (w_ld < 0) w_ld = 0;
-    if (w_ls < 0) w_ls = 0;
-    if (w_center < 0) w_center = 0;
-    if (w_rs < 0) w_rs = 0;
-    if (w_rd < 0) w_rd = 0;
+    if (w_ld < 0)
+      w_ld = 0;
+    if (w_ls < 0)
+      w_ls = 0;
+    if (w_center < 0)
+      w_center = 0;
+    if (w_rs < 0)
+      w_rs = 0;
+    if (w_rd < 0)
+      w_rd = 0;
 
     int line_h = renderer->get_line_height();
     if (line_h <= 0)
@@ -675,7 +681,8 @@ static void renderReaderMenu(Renderer *renderer)
     renderer->draw_rect(rs_zone_start, box_y, rs_zone_end - rs_zone_start, box_h, 0);
     renderer->draw_rect(rd_zone_start, box_y, rd_zone_end - rd_zone_start, box_h, 0);
 
-    auto center_label_x = [](int zone_start, int zone_end, int text_width) {
+    auto center_label_x = [](int zone_start, int zone_end, int text_width)
+    {
       int w = zone_end - zone_start;
       int x = zone_start + (w - text_width) / 2;
       if (x < zone_start)
@@ -798,7 +805,7 @@ static void save_app_settings(Renderer *renderer)
   {
     s.flags |= 0x4;
   }
-   if (invert_tap_zones)
+  if (invert_tap_zones)
   {
     s.flags |= 0x8;
   }
@@ -1621,8 +1628,8 @@ void main_task(void *param)
     {
       epub_list_state.selected_item = last_book_index;
       ui_state = READING_EPUB;
-     #if defined(BOARD_TYPE_PAPER_S3)
-      ui_action = NONE;   // Paper S3 has no navigation buttons
+#if defined(BOARD_TYPE_PAPER_S3)
+      ui_action = NONE; // Paper S3 has no navigation buttons
 #endif
     }
 #endif
@@ -1674,19 +1681,22 @@ void main_task(void *param)
 
     bool in_reading_context = (ui_state == READING_EPUB || ui_state == READING_MENU || ui_state == SELECTING_TABLE_CONTENTS);
     int64_t idle_timeout_us = in_reading_context ? idle_timeout_reading_us : idle_timeout_library_us;
+
     if (esp_timer_get_time() - last_user_interaction >= idle_timeout_us)
     {
-     if (esp_timer_get_time() - last_user_interaction >= idle_timeout_us)
-    {
-#if defined(BOARD_TYPE_LILYGO_T5_47_S3)
-      enter_light_sleep();
-      last_user_interaction = esp_timer_get_time();
-      continue;
-#else
-      break;
-#endif
+      #if defined(BOARD_TYPE_LILYGO_T5_47_S3)
+      if (epub_list)
+      {
+        epub_list->save_index("/fs/Books/BOOKS.IDX");
+      }
+            enter_light_sleep();
+            last_user_interaction = esp_timer_get_time();
+            continue;
+      #else
+            break;
+      #endif
     }
-    }
+
     UIAction ui_action = NONE;
     // wait for something to happen for 60 seconds
     if (xQueueReceive(ui_queue, &ui_action, pdMS_TO_TICKS(60000)) == pdTRUE)

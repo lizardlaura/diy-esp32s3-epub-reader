@@ -54,4 +54,5 @@ public:
   void prev();
   void render();
   void save_index(const char *index_path);
+  std::vector<EpubListItem> m_previous_positions;
 };
